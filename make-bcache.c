@@ -311,22 +311,26 @@ static unsigned get_blocksize(const char *path)
 		 *
 		 * It may be tempting to use physical_block_size,
 		 * or even minimum_io_size.
-		 * But to be as transparent as possible,
-		 * we want to use logical_block_size.
+		 * using logical block size as cache dev block size
+		 * might cause poor performance when I/O size is
+		 * larger than logical block size (512B) but less
+		 * than device physical block size (4K), due to
+		 * SSD requiring I/Os to be 4k aligned.
+		 * So we use physical block size here.
 		 */
-		unsigned int logical_block_size;
+		unsigned int block_size;
 		int fd = open(path, O_RDONLY);
 
 		if (fd < 0) {
 			fprintf(stderr, "open(%s) failed: %m\n", path);
 			exit(EXIT_FAILURE);
 		}
-		if (ioctl(fd, BLKSSZGET, &logical_block_size)) {
+		if (ioctl(fd, BLKPBSZGET, &block_size)) {
 			fprintf(stderr, "ioctl(%s, BLKSSZGET) failed: %m\n", path);
 			exit(EXIT_FAILURE);
 		}
 		close(fd);
-		return logical_block_size / 512;
+		return block_size / 512;
 
 	}
 	/* else: not a block device.
